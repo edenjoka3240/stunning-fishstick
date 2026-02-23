@@ -1,0 +1,65 @@
+name: Tmate Session
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [start-tmate]
+
+jobs:
+  tmate-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    continue-on-error: true
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install tmate
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq tmate curl wget git net-tools
+        tmate -V
+        echo "tmate installed successfully"
+
+    - name: Start tmate and display connection info
+      run: |
+        # Tạo socket cho tmate
+        tmate -S /tmp/tmate.sock new-session -d
+
+        # Đợi tmate khởi tạo xong
+        echo "Waiting for tmate session..."
+        sleep 5
+
+        # Lấy và hiển thị SSH connection string
+        tmate -S /tmp/tmate.sock wait tmate-ready
+
+        echo "========================================"
+        echo "        TMATE CONNECTION INFO"
+        echo "========================================"
+        echo ""
+        echo "SSH:"
+        tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+        echo ""
+        echo "WEB:"
+        tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
+        echo ""
+        echo "SSH READ-ONLY:"
+        tmate -S /tmp/tmate.sock display -p '#{tmate_ssh_ro}'
+        echo ""
+        echo "WEB READ-ONLY:"
+        tmate -S /tmp/tmate.sock display -p '#{tmate_web_ro}'
+        echo ""
+        echo "========================================"
+        echo "Copy link SSH hoặc mở link WEB để kết nối!"
+        echo "Session sẽ mở trong 350 phút."
+        echo "========================================"
+
+        # Giữ session mở
+        while true; do
+          if ! tmate -S /tmp/tmate.sock has-session 2>/dev/null; then
+            echo "Tmate session ended."
+            break
+          fi
+          sleep 60
+        done
+      timeout-minutes: 350
